@@ -14,54 +14,8 @@
 (def ^:dynamic *max-names* 20) ; max names to include in a row
 
 (defprotocol CountMap
-  (to-row [this state])
-  (with-row [this [state _ _ name ct]]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Structure for maintaining exact counts
-
-(defrecord ExactCountMap []
-  CountMap
-  (to-row [this state] 
-    (assoc 
-      (->> (get this state)
-        (sort-by second)
-        reverse
-        (take *max-names*)
-        flatten
-        (apply hash-map))
-      "_State" state))
-  (with-row [this [state _ _ name ct]] 
-	  (let [ct-int (read-string ct)]
-	   (cond
-	     (get-in this [state name]) (update-in this [state name] #(+ % ct-int))
-	     (get-in this [state]) (assoc-in this [state name] ct-int)
-	     :else (assoc this state (sorted-map name ct-int)))))
-  )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Structure for maintaining approx counts
-
-(def ^:dynamic *capacity* 100000) ; should be > max-names... why is this so terrible?
-
-(defrecord ApproxCountMap []
-  CountMap
-  (to-row [this state] 
-    (if
-	    (contains? this state)
-	      (reduce 
-	        #(assoc %1 (.getItem %2) (.getCount %2)) 
-	        {"_State" state}
-	        (.topK (get this state) *max-names*))
-       nil))
-  (with-row [this [state _ _ name ct]]
-	  (let [ct-int (read-string ct)]
-	   (if-let [sketch (get this state)]
-	     (do (.offer sketch name ct-int) this)
-	     (assoc this state
-	            (doto (StreamSummary. *capacity*)
-	              (.offer name ct-int))))))
-  )
+  (to-row [this state] "Given a state, returns the name-counts for that state in matrix-able format.")
+  (with-row [this [state _ _ name ct]] "Returns a countmap structure with this new row added in."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Parsing bits
@@ -95,7 +49,7 @@
   [countmap]
     (let [base-rows (map #(to-row countmap %1) (keys countmap))
         cols (apply sorted-set (mapcat keys base-rows))
-        zero-row (apply assoc {} (interleave cols (take (count cols) (repeatedly (constantly 0)))))
+        zero-row (apply assoc {} (interleave cols (repeat (count cols) 0)))
         rows (map (partial merge zero-row) base-rows)]
     (dataset cols rows)))
 

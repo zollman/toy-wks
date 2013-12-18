@@ -17,4 +17,6 @@
                  [incanter/incanter-charts "1.5.4"]
                  [incanter/incanter-io "1.5.4"]
                  [incanter/incanter-pdf "1.5.4"]
-                 [org.clojure/tools.trace "0.7.6"]])
+                 [org.clojure/tools.trace "0.7.6"]
+                 [factual/clj-leveldb "0.1.0"]
+                 ])
